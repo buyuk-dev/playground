@@ -1,19 +1,24 @@
-# TODO
-# 1. Discover Muse EEG headset.
 # 2. Discover services and characteristics of the device.
 # 3. Connect to a device.
 # 4. Get data from a device.
 # 5. Disconnect from a device.
 
+import pdb
 
-import CoreBluetooth
-from Foundation import NSObject
 import objc
-from pprint import pprint
+from Foundation import (
+    NSObject,
+)
+import CoreBluetooth
+from libdispatch import (
+    dispatch_queue_create,
+    DISPATCH_QUEUE_SERIAL,
+)
+
 import asyncio
-from libdispatch import dispatch_queue_create, DISPATCH_QUEUE_SERIAL
 import threading
 import time
+from pprint import pprint
 
 
 class CentralManagerDelegate(NSObject):
@@ -27,7 +32,8 @@ class CentralManagerDelegate(NSObject):
             dispatch_queue_create(b"bleak.corebluetooth", DISPATCH_QUEUE_SERIAL),
         )
         self._did_update_state_event.wait(1)
-        self.discovered = dict()
+        self.discovered = None
+        self.connected = None
         return self
 
     def centralManager_didDiscoverPeripheral_advertisementData_RSSI_(
@@ -37,11 +43,9 @@ class CentralManagerDelegate(NSObject):
             advertismentData,
             RSSI
         ):
-        if peripheral.identifier() not in self.discovered.keys() or \
-           peripheral.name() != self.discovered[peripheral.identifier()]:
-
+        if peripheral.name() == "Muse-7E45":
+            self.discovered = peripheral
             print(f"{peripheral.name()} {peripheral.identifier()}")
-            self.discovered[peripheral.identifier()] = peripheral.name()
 
     def centralManager_didDisconnectPeripheral_error_(
             self,
@@ -49,7 +53,19 @@ class CentralManagerDelegate(NSObject):
             peripheral,
             error
         ):
-        print(f"Error while attempting discovery...")
+        print(f"Error while attempting discovery: {error}")
+
+    def centralManager_didConnectPeripheral_(
+            self,
+            central,
+            peripheral
+        ):
+        print(f"Peripheral {peripheral.name()} connected.")
+        peripheral.delegate = self
+        self.connected = peripheral
+
+    def centralManager_didFailToConnect_error_(self, central, peripheral, error):
+        print(f"Failed to connect to {peripheral.name()}.")
         print(error)
 
     def centralManagerDidUpdateState_(self, centralManager):
@@ -72,10 +88,26 @@ class CentralManagerDelegate(NSObject):
 async def main():
     cmd = CentralManagerDelegate.alloc().init()
     cmd.central_manager.scanForPeripheralsWithServices_options_(None, None)
-    while True:
-        print(f"Discovered {len(cmd.discovered)} devices nearby.")
+    while cmd.discovered is None:
         await asyncio.sleep(1.0)
-        
+
+    muse = cmd.discovered
+    cmd.central_manager.stopScan()
+
+    await asyncio.sleep(1.0)
+
+    print("Attempting connection to:")
+    print((muse.name(), muse.identifier()))
+
+    pdb.set_trace()
+    cmd.central_manager.connectPeripheral_options_(muse, None)
+
+    while cmd.connected is None:
+        await asyncio.sleep(1.0)
+
+    muse = cmd.connected
+    print(f"Connected to {muse.name()}.")
+
 
 asyncio.run(main())
 
