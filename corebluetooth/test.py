@@ -1,3 +1,12 @@
+# Notes:
+#
+# The timeouts on connectPeripheral() calls have been resolved after i deleted the
+# /Library/Preferences/com.apple.Bluetooth.plist file and installed 
+# https://download.developer.apple.com/OS_X/OS_X_Logs/Bluetooth_Logging_Instructions.pdf
+# debug log profile and rebooted.
+#
+
+# TODO:
 # 2. Discover services and characteristics of the device.
 # 3. Connect to a device.
 # 4. Get data from a device.
@@ -99,7 +108,7 @@ async def main():
     print("Attempting connection to:")
     print((muse.name(), muse.identifier()))
 
-    pdb.set_trace()
+    #pdb.set_trace()
     cmd.central_manager.connectPeripheral_options_(muse, None)
 
     while cmd.connected is None:
